@@ -1,0 +1,17 @@
+{
+  "@@locale": "es",
+  "appTitle": "Master Academy",
+  "featuredCourses": "Cursos destacados",
+  "viewAll": "Ver todos",
+  "exploreCourses": "Explorar cursos",
+  "studyAtYourOwnPace": "Estudia a tu ritmo",
+  "heroSubtitle": "Cursos certificados para impulsar tu carrera profesional.",
+  "buyNow": "Comprar ahora",
+  "priceLabel": "Precio",
+  "enrolledLabel": "Ya estás inscrito",
+  "notifications": "Notificaciones",
+  "markAllAsRead": "Marcar todas como leídas",
+  "noNotifications": "No hay notificaciones",
+  "errorLoadingCourses": "No se pudieron cargar los cursos",
+  "retry": "Reintentar"
+}
