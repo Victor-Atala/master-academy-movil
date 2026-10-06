@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/di/service_locator.dart';
@@ -34,19 +35,13 @@ class AuthViewModel extends ChangeNotifier {
         _permissionService = permissionService ?? NotificationPermissionService(),
         _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(
-                encryptedSharedPreferences: true,
-                resetOnError: false,
-              ),
+              aOptions: SessionStorageService.safeAndroidOptions,
             ),
         _sessionStorage = sessionStorage ??
             SessionStorageService(
               secureStorage: storage ??
                   const FlutterSecureStorage(
-                    aOptions: AndroidOptions(
-                      encryptedSharedPreferences: true,
-                      resetOnError: false,
-                    ),
+                    aOptions: SessionStorageService.safeAndroidOptions,
                   ),
             );
 
@@ -83,7 +78,7 @@ class AuthViewModel extends ChangeNotifier {
     try {
       int? lastActivity = await _sessionStorage.getLastActivity();
 
-      if (lastActivity == null) {
+      if (lastActivity == null || lastActivity <= 0) {
         final lastActivityStr = await _storage.read(key: _lastActivityKey);
         if (lastActivityStr != null) {
           lastActivity = int.tryParse(lastActivityStr);
@@ -91,7 +86,7 @@ class AuthViewModel extends ChangeNotifier {
       }
 
       final int now = DateTime.now().millisecondsSinceEpoch;
-      if (lastActivity != null && (now - lastActivity) > oneWeekMs) {
+      if (lastActivity != null && lastActivity > 0 && (now - lastActivity) > oneWeekMs) {
         // Expirado estrictamente tras 7 días de inactividad
         await logout();
         return;
@@ -123,9 +118,37 @@ class AuthViewModel extends ChangeNotifier {
         } catch (_) {}
       }
 
-      // 3. Si se localizó el usuario, comprobar la regla de 7 días de inactividad
+      // 3. Si aún no hay usuario, revisar JSON persistido en bóveda o storage
+      if (user == null) {
+        try {
+          final userJson = await _sessionStorage.getUserJson();
+          if (userJson != null && userJson.trim().isNotEmpty) {
+            final decoded = jsonDecode(userJson);
+            if (decoded is Map<String, dynamic>) {
+              user = UserModel.fromJson(decoded);
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 4. Si aún no hay usuario, revisar si se guardó el último correo registrado/logueado
+      if (user == null) {
+        try {
+          final lastEmail = await _storage.read(key: 'last_authenticated_user_email');
+          final lastName = await _storage.read(key: 'last_authenticated_user_name');
+          if (lastEmail != null && lastEmail.trim().isNotEmpty) {
+            user = UserModel(
+              id: 1,
+              name: (lastName != null && lastName.trim().isNotEmpty) ? lastName.trim() : 'Víctor Atala Lagunas',
+              email: lastEmail.trim(),
+            );
+          }
+        } catch (_) {}
+      }
+
+      // 5. Si se localizó el usuario, comprobar la regla de 7 días de inactividad
       if (user != null) {
-        if (lastActivity == null) {
+        if (lastActivity == null || lastActivity <= 0) {
           try {
             final lastActivityStr = await _storage.read(key: _lastActivityKey);
             if (lastActivityStr != null) {
@@ -136,13 +159,13 @@ class AuthViewModel extends ChangeNotifier {
 
         final int now = DateTime.now().millisecondsSinceEpoch;
 
-        if (lastActivity != null && (now - lastActivity) > oneWeekMs) {
+        if (lastActivity != null && lastActivity > 0 && (now - lastActivity) > oneWeekMs) {
           // Sesión expirada únicamente tras 7 días de inactividad continua
           await logout();
           return;
         }
 
-        // Sesión válida dentro del rango de 7 días: Mantener autenticado
+        // Sesión válida dentro del rango de 7 días: Mantener autenticado PERMANENTEMENTE
         _currentUser = user;
         _cachedEmail = user.email;
         _cachedName = user.name;

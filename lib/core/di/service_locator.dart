@@ -9,6 +9,7 @@ import '../services/download_service.dart';
 import '../services/realtime_sync_service.dart';
 import '../services/student_notes_service.dart';
 import '../services/course_interaction_service.dart';
+import '../services/quiz_service.dart';
 
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/datasources/certificate_remote_datasource.dart';
@@ -47,10 +48,7 @@ Future<void> init() async {
   // Core Services
   sl.registerLazySingleton<FlutterSecureStorage>(
     () => const FlutterSecureStorage(
-      aOptions: AndroidOptions(
-        encryptedSharedPreferences: true,
-        resetOnError: false,
-      ),
+      aOptions: SessionStorageService.safeAndroidOptions,
     ),
   );
   sl.registerLazySingleton<SessionStorageService>(
@@ -145,6 +143,7 @@ Future<void> init() async {
   // Student Notes & Course Interaction Services
   sl.registerLazySingleton<StudentNotesService>(() => StudentNotesService(storage: sl()));
   sl.registerLazySingleton<CourseInteractionService>(() => CourseInteractionService(storage: sl()));
+  sl.registerLazySingleton<QuizService>(() => QuizService(storage: sl()));
 
   // Real-time Course Synchronization Service
   sl.registerLazySingleton(

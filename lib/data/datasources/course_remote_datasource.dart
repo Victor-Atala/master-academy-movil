@@ -5,6 +5,8 @@ import '../../core/constants/api_constants.dart';
 import '../../core/network/api_client.dart';
 import '../models/course_model.dart';
 import '../models/syllabus_model.dart';
+import '../models/quiz_model.dart';
+import '../../domain/entities/quiz.dart';
 
 abstract class CourseRemoteDataSource {
   bool get isOffline;
@@ -406,9 +408,57 @@ Descarga la guía técnica y el checklist adjuntos en la pestaña **"Recursos y 
       ],
     );
 
+    final fallbackList = _fallbackSyllabi(courseId);
+
     final updatedSections = <SyllabusSectionModel>[];
     for (int i = 0; i < sections.length; i++) {
       final s = sections[i];
+
+      // Vincular evaluación formativa si la sección del servidor no trae una
+      Quiz? moduleQuiz = s.evaluation;
+      if (moduleQuiz == null && i < fallbackList.length && !fallbackList[i].isFinalCertification) {
+        moduleQuiz = fallbackList[i].evaluation;
+      }
+      if (moduleQuiz == null && !s.isFinalCertification) {
+        moduleQuiz = QuizModel(
+          id: 'quiz-mod-${cleanId}-${s.id}',
+          title: 'Evaluación Formativa: ${s.title}',
+          description: 'Valida los conceptos técnicos y competencias operativas abordadas en este módulo.',
+          passingScore: 70,
+          isFinal: false,
+          totalPoints: 100,
+          durationMinutes: 15,
+          courseId: cleanId,
+          moduleId: s.id,
+          questions: const [
+            QuizQuestionModel(
+              id: 'q-mod-gen-1',
+              text: '¿Cuál es el beneficio de asimilar las metodologías presentadas en este módulo formativo?',
+              weightPoints: 50,
+              options: [
+                QuizOptionModel(id: 'omg1-1', text: 'Aplicar criterios técnicos rigurosos que elevan la calidad y resuelven casos prácticos.', isCorrect: true),
+                QuizOptionModel(id: 'omg1-2', text: 'Omitir la fase de pruebas y validación funcional.', isCorrect: false),
+                QuizOptionModel(id: 'omg1-3', text: 'Depender únicamente de herramientas sin supervisión técnica.', isCorrect: false),
+                QuizOptionModel(id: 'omg1-4', text: 'Reducir la seguridad de los procesos.', isCorrect: false),
+              ],
+              explanation: 'La asimilación de metodologías sólidas garantiza estándares profesionales elevados en la ejecución.',
+            ),
+            QuizQuestionModel(
+              id: 'q-mod-gen-2',
+              text: 'En el ejercicio profesional, ¿cómo se consolida el aprendizaje de los conceptos clave?',
+              weightPoints: 50,
+              options: [
+                QuizOptionModel(id: 'omg2-1', text: 'Mediante la ejecución metódica de casos de uso y la revisión de material complementario.', isCorrect: true),
+                QuizOptionModel(id: 'omg2-2', text: 'Memorizando respuestas sin comprender la lógica fundamental.', isCorrect: false),
+                QuizOptionModel(id: 'omg2-3', text: 'Descartando la documentación técnica oficial.', isCorrect: false),
+                QuizOptionModel(id: 'omg2-4', text: 'Ignorando las mejores prácticas de la industria.', isCorrect: false),
+              ],
+              explanation: 'La práctica orientada a proyectos y casos reales consolida las competencias transferibles al entorno laboral.',
+            ),
+          ],
+        );
+      }
+
       if (i == 0 && !hasReading) {
         final updatedLessons = [
           ...s.lessons,
@@ -432,6 +482,8 @@ Descarga la guía técnica y el checklist adjuntos en la pestaña **"Recursos y 
             title: s.title,
             order: s.order,
             lessons: updatedLessons,
+            evaluation: moduleQuiz,
+            isFinalCertification: s.isFinalCertification,
           ),
         );
       } else {
@@ -467,9 +519,66 @@ Descarga la guía técnica y el checklist adjuntos en la pestaña **"Recursos y 
             title: s.title,
             order: s.order,
             lessons: updatedLessons,
+            evaluation: moduleQuiz,
+            isFinalCertification: s.isFinalCertification,
           ),
         );
       }
+    }
+
+    // Incorporar siempre el Módulo Final de Certificación si no está presente
+    final bool hasFinalCert = updatedSections.any((s) => s.isFinalCertification);
+    if (!hasFinalCert) {
+      final SyllabusSectionModel finalSection;
+      final fallbackCert = fallbackList.where((s) => s.isFinalCertification).toList();
+      if (fallbackCert.isNotEmpty) {
+        finalSection = fallbackCert.first;
+      } else {
+        finalSection = SyllabusSectionModel(
+          id: 99990 + cleanId,
+          title: 'Módulo Final: Evaluación para Diploma Oficial',
+          order: updatedSections.length + 1,
+          isFinalCertification: true,
+          evaluation: QuizModel(
+            id: 'quiz-final-cert-$cleanId',
+            title: 'Examen Global de Certificación y Acreditación',
+            description: 'Evaluación integradora oficial obligatoria para la acreditación de competencias y expedición del diploma oficial.',
+            passingScore: 75,
+            isFinal: true,
+            totalPoints: 100,
+            durationMinutes: 25,
+            courseId: cleanId,
+            moduleId: 99990 + cleanId,
+            questions: const [
+              QuizQuestionModel(
+                id: 'q-generic-cert-1',
+                text: '¿Cuál es el objetivo primordial de aplicar estándares y protocolos normativos en el entorno profesional?',
+                weightPoints: 50,
+                options: [
+                  QuizOptionModel(id: 'og1-1', text: 'Garantizar la calidad operativa, prevenir riesgos y asegurar el cumplimiento continuo.', isCorrect: true),
+                  QuizOptionModel(id: 'og1-2', text: 'Incrementar los costos operativos sin justificación.', isCorrect: false),
+                  QuizOptionModel(id: 'og1-3', text: 'Evitar el uso de tecnologías modernas.', isCorrect: false),
+                  QuizOptionModel(id: 'og1-4', text: 'Prescindir de auditorías y revisiones periódicas.', isCorrect: false),
+                ],
+                explanation: 'La aplicación rigurosa de estándares optimiza la operación y asegura la continuidad y resiliencia.',
+              ),
+              QuizQuestionModel(
+                id: 'q-generic-cert-2',
+                text: 'Para asegurar una acreditación profesional formal con validez oficial, ¿qué elemento es imprescindible?',
+                weightPoints: 50,
+                options: [
+                  QuizOptionModel(id: 'og2-1', text: 'Comprobar competencias mediante evaluaciones integradoras verificables con código hash / UUID.', isCorrect: true),
+                  QuizOptionModel(id: 'og2-2', text: 'Asistir únicamente sin validar conocimientos.', isCorrect: false),
+                  QuizOptionModel(id: 'og2-3', text: 'Ignorar las evaluaciones prácticas y teóricas.', isCorrect: false),
+                  QuizOptionModel(id: 'og2-4', text: 'No realizar ningún registro de avance formativo.', isCorrect: false),
+                ],
+                explanation: 'La verificación criptográfica o UUID respalda la autenticidad y el rigor del diploma emitido.',
+              ),
+            ],
+          ),
+        );
+      }
+      updatedSections.add(finalSection);
     }
 
     return updatedSections;
@@ -648,6 +757,43 @@ Descarga la guía técnica y el checklist adjuntos en la pestaña **"Recursos y 
         id: 22,
         title: 'Módulo 1: Arquitectura y Seguridad en APIs',
         order: 1,
+        evaluation: const QuizModel(
+          id: 'quiz-mod-1',
+          title: 'Evaluación Formativa Módulo 1: Arquitectura y Seguridad en APIs',
+          description: 'Valida los conceptos clave de Zero Trust, defensa en profundidad y autenticación JWT con control de acceso.',
+          passingScore: 70,
+          isFinal: false,
+          totalPoints: 100,
+          durationMinutes: 15,
+          courseId: 1,
+          moduleId: 22,
+          questions: [
+            QuizQuestionModel(
+              id: 'q1-1',
+              text: 'En una arquitectura con modelo Zero Trust, ¿cuál de las siguientes afirmaciones es correcta?',
+              weightPoints: 50,
+              options: [
+                QuizOptionModel(id: 'opt1-1', text: 'Ningún usuario ni microservicio dentro o fuera del perímetro debe considerarse confiable por defecto.', isCorrect: true),
+                QuizOptionModel(id: 'opt1-2', text: 'Los servicios dentro de la red corporativa deben prescindir de autenticación mutua (mTLS) para reducir latencia.', isCorrect: false),
+                QuizOptionModel(id: 'opt1-3', text: 'Las contraseñas de administradores deben guardarse sin salar en variables de entorno.', isCorrect: false),
+                QuizOptionModel(id: 'opt1-4', text: 'El control de acceso perimetral en firewall es suficiente y exime de validar tokens en cada servicio.', isCorrect: false),
+              ],
+              explanation: 'Zero Trust exige autenticación y autorización explícita para cada solicitud, sin importar su origen.',
+            ),
+            QuizQuestionModel(
+              id: 'q1-2',
+              text: '¿Por qué los tokens JWT de acceso (Access Tokens) deben tener un tiempo de vida corto (ej. 15 minutos)?',
+              weightPoints: 50,
+              options: [
+                QuizOptionModel(id: 'opt2-1', text: 'Para limitar la ventana de exposición en caso de intercepción o robo del token.', isCorrect: true),
+                QuizOptionModel(id: 'opt2-2', text: 'Porque la librería JSON Web Token no admite firmas con duración superior a una hora.', isCorrect: false),
+                QuizOptionModel(id: 'opt2-3', text: 'Para forzar al usuario a ingresar su contraseña manualmente cada 15 minutos.', isCorrect: false),
+                QuizOptionModel(id: 'opt2-4', text: 'Para reducir el tamaño de los encabezados HTTP en peticiones REST.', isCorrect: false),
+              ],
+              explanation: 'Un tiempo de expiración corto reduce drásticamente el impacto de un token comprometido, complementado por Refresh Tokens rotativos.',
+            ),
+          ],
+        ),
         lessons: [
           LessonModel(
             id: 23,
@@ -707,6 +853,43 @@ Descarga la guía técnica y el checklist adjuntos en la pestaña **"Recursos y 
         id: 25,
         title: 'Módulo 2: Bases de Datos y Cifrado',
         order: 2,
+        evaluation: const QuizModel(
+          id: 'quiz-mod-2',
+          title: 'Evaluación Formativa Módulo 2: Cifrado y Bases de Datos',
+          description: 'Evalúa el modelado relacional ACID y las técnicas criptográficas de cifrado simétrico y asimétrico.',
+          passingScore: 70,
+          isFinal: false,
+          totalPoints: 100,
+          durationMinutes: 15,
+          courseId: 1,
+          moduleId: 25,
+          questions: [
+            QuizQuestionModel(
+              id: 'q2-1',
+              text: '¿Cuál propiedad de las transacciones ACID asegura que los cambios confirmados permanezcan guardados incluso ante fallos de energía?',
+              weightPoints: 50,
+              options: [
+                QuizOptionModel(id: 'opt21-1', text: 'Durabilidad (Durability)', isCorrect: true),
+                QuizOptionModel(id: 'opt21-2', text: 'Aislamiento (Isolation)', isCorrect: false),
+                QuizOptionModel(id: 'opt21-3', text: 'Atomicidad (Atomicity)', isCorrect: false),
+                QuizOptionModel(id: 'opt21-4', text: 'Consistencia (Consistency)', isCorrect: false),
+              ],
+              explanation: 'La Durabilidad garantiza que una transacción completada y persistida en disco no se pierda ante caídas del servidor.',
+            ),
+            QuizQuestionModel(
+              id: 'q2-2',
+              text: 'Para cifrar información confidencial en reposo en la base de datos (como credenciales o datos médicos), ¿qué algoritmo es el estándar recomendado?',
+              weightPoints: 50,
+              options: [
+                QuizOptionModel(id: 'opt22-1', text: 'AES-256 en modo GCM con vector de inicialización único.', isCorrect: true),
+                QuizOptionModel(id: 'opt22-2', text: 'MD5 con sal aleatoria.', isCorrect: false),
+                QuizOptionModel(id: 'opt22-3', text: 'Base64 con compresión gzip.', isCorrect: false),
+                QuizOptionModel(id: 'opt22-4', text: 'DES (Data Encryption Standard) de 56 bits.', isCorrect: false),
+              ],
+              explanation: 'AES-256-GCM proporciona cifrado autenticado de alta seguridad y rendimiento para datos en reposo.',
+            ),
+          ],
+        ),
         lessons: [
           LessonModel(
             id: 26,
@@ -731,6 +914,84 @@ Descarga la guía técnica y el checklist adjuntos en la pestaña **"Recursos y 
             isCompleted: false,
             isFreePreview: false,
             type: 'video',
+          ),
+        ],
+      ),
+      SyllabusSectionModel(
+        id: 28,
+        title: 'Módulo Final: Evaluación para Diploma Oficial',
+        order: 3,
+        isFinalCertification: true,
+        evaluation: const QuizModel(
+          id: 'quiz-final-cert',
+          title: 'Examen Global de Certificación: Desarrollo Web & Ciberseguridad',
+          description: 'Evaluación integradora oficial obligatoria para la acreditación de competencias y expedición del diploma digital con código UUID.',
+          passingScore: 75,
+          isFinal: true,
+          totalPoints: 100,
+          durationMinutes: 25,
+          courseId: 1,
+          moduleId: 28,
+          questions: [
+            QuizQuestionModel(
+              id: 'qf-1',
+              text: '¿Cuál es el principio cardinal del modelo Zero Trust en arquitecturas seguras contemporáneas?',
+              weightPoints: 30,
+              options: [
+                QuizOptionModel(id: 'optf1-1', text: 'Asumir brechas de seguridad y validar continuamente la identidad de cada solicitud con el menor privilegio.', isCorrect: true),
+                QuizOptionModel(id: 'optf1-2', text: 'Confiar en todo el tráfico procedente de direcciones IP privadas dentro de la red corporativa.', isCorrect: false),
+                QuizOptionModel(id: 'optf1-3', text: 'Eliminar la necesidad de certificados SSL/TLS en microservicios backend.', isCorrect: false),
+                QuizOptionModel(id: 'optf1-4', text: 'Requerir inicio de sesión únicamente una vez por mes en la plataforma.', isCorrect: false),
+              ],
+              explanation: 'Zero Trust postula "nunca confiar, siempre verificar", evaluando contexto, dispositivo e identidad en cada petición.',
+            ),
+            QuizQuestionModel(
+              id: 'qf-2',
+              text: '¿Cuál es la estrategia recomendada para revocar un token JWT antes de su expiración en caso de actividad sospechosa?',
+              weightPoints: 35,
+              options: [
+                QuizOptionModel(id: 'optf2-1', text: 'Mantener una lista de revocación (denylist/blocklist) distribuida en caché de alta velocidad (Redis) indexada por el identificador único del token (JTI).', isCorrect: true),
+                QuizOptionModel(id: 'optf2-2', text: 'Modificar la clave privada de firma en el servidor obligando a que fallen todos los tokens de todos los usuarios.', isCorrect: false),
+                QuizOptionModel(id: 'optf2-3', text: 'Solicitar al navegador del usuario que elimine la cookie sin comprobación en el backend.', isCorrect: false),
+                QuizOptionModel(id: 'optf2-4', text: 'Los tokens JWT no pueden invalidarse bajo ningún concepto hasta que concluya su periodo natural de expiración.', isCorrect: false),
+              ],
+              explanation: 'Una denylist basada en JTI en memoria volátil permite revocar tokens específicos con latencias mínimas sin invalidar a toda la base de usuarios.',
+            ),
+            QuizQuestionModel(
+              id: 'qf-3',
+              text: '¿Por qué se debe utilizar una función de derivación de claves (KDF) con factor de trabajo adaptable (como Argon2id o bcrypt) en lugar de hashes rápidos como SHA-256 para almacenamiento de credenciales?',
+              weightPoints: 35,
+              options: [
+                QuizOptionModel(id: 'optf3-1', text: 'Porque los algoritmos rápidos como SHA-256 son vulnerables a ataques de fuerza bruta masiva acelerados por GPUs y ASICs, mientras que Argon2id y bcrypt imponen coste computacional y de memoria configurable.', isCorrect: true),
+                QuizOptionModel(id: 'optf3-2', text: 'Porque SHA-256 tiene colisiones matemáticas triviales y ya no es un algoritmo estándar en la industria.', isCorrect: false),
+                QuizOptionModel(id: 'optf3-3', text: 'Porque Argon2id no utiliza sal (salt) y ocupa menos espacio en base de datos.', isCorrect: false),
+                QuizOptionModel(id: 'optf3-4', text: 'Porque bcrypt es un algoritmo simétrico que permite descifrar la contraseña original cuando el usuario la olvida.', isCorrect: false),
+              ],
+              explanation: 'Las credenciales requieren algoritmos deliberadamente lentos y resistentes a memoria (memory-hard) para impedir ataques de diccionario por fuerza bruta a gran escala.',
+            ),
+          ],
+        ),
+        lessons: [
+          LessonModel(
+            id: 29,
+            syllabusId: 28,
+            title: 'Lineamientos y Parámetros del Examen de Certificación',
+            description: '''# Lineamientos y Criterios de Aprobación para Diploma Oficial
+Este examen final integrador evalúa las competencias globales adquiridas a lo largo de todo el programa formativo de Master Academy.
+
+### 📜 Criterios de Acreditación Oficial:
+- **Puntaje total**: 100 puntos ponderados.
+- **Puntaje mínimo aprobatorio**: 75% (75 puntos).
+- **Emisión de Diploma**: Al alcanzar el puntaje aprobatorio, el sistema te declarará oficialmente **APTO** y generará de inmediato tu **Certificado Digital con código UUID único** verificado en la plataforma.
+- **Reintentos**: Si obtienes menos del 75%, recibirás retroalimentación detallada y podrás volver a realizar la evaluación.
+
+Haz clic en **"Iniciar Examen Global de Certificación"** para comenzar.''',
+            videoUrl: null,
+            durationSeconds: 300,
+            order: 1,
+            isCompleted: false,
+            isFreePreview: false,
+            type: 'reading',
           ),
         ],
       ),

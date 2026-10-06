@@ -20,7 +20,7 @@ class ApiConstants {
       return 'http://localhost:8000/api/v1';
     }
     // IP local actual de la máquina de desarrollo en la red Wi-Fi
-    return 'http://192.168.68.103:8000/api/v1';
+    return 'http://192.168.68.106:8000/api/v1';
   }
 
   // Auth endpoints

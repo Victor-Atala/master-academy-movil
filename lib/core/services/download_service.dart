@@ -135,7 +135,7 @@ class DownloadService {
       if (targetUrl.startsWith('/')) {
         targetUrl = '$serverBase$targetUrl';
       } else if (targetUrl.contains('localhost:8000') || targetUrl.contains('127.0.0.1:8000')) {
-        final hostOnly = Uri.tryParse(serverBase)?.authority ?? '192.168.68.103:8000';
+        final hostOnly = Uri.tryParse(serverBase)?.authority ?? '192.168.68.106:8000';
         targetUrl = targetUrl.replaceAll('localhost:8000', hostOnly).replaceAll('127.0.0.1:8000', hostOnly);
       }
 

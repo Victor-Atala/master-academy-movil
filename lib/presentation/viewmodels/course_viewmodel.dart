@@ -85,9 +85,10 @@ class CourseViewModel extends ChangeNotifier with WidgetsBindingObserver {
     // 2. Solo si el servidor principal falla y estamos offline, probar candidatos locales de respaldo
     if (isOffline) {
       final candidateHosts = [
+        '192.168.68.106',
+        '192.168.68.105',
         '192.168.68.103',
         '192.168.68.104',
-        '192.168.68.106',
         '10.0.2.2',
         '127.0.0.1',
       ];

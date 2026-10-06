@@ -16,6 +16,9 @@ import '../../widgets/course_access_modal.dart';
 import '../../widgets/course_rating_modal.dart';
 import '../../widgets/instructor_inquiry_modal.dart';
 import '../../widgets/youtube_style_comments_section.dart';
+import '../quiz/quiz_screen.dart';
+import '../../../core/services/quiz_service.dart';
+import '../../../domain/entities/quiz.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final Course course;
@@ -548,139 +551,357 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> with SingleTick
         final bool isSectionCompleted = section.lessons.isNotEmpty && section.lessons.every((l) => l.isCompleted);
         final int completedLessonsCount = section.lessons.where((l) => l.isCompleted).length;
 
+        final bool isFinalCert = section.isFinalCertification;
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : AppColors.backgroundAlt,
+            color: isFinalCert
+                ? (isDark ? const Color(0xFF064E3B).withOpacity(0.2) : const Color(0xFFECFDF5))
+                : (isDark ? AppColors.darkSurface : AppColors.backgroundAlt),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.border),
+            border: Border.all(
+              color: isFinalCert
+                  ? const Color(0xFF0AB39C)
+                  : (isDark ? AppColors.darkBorder : AppColors.border),
+              width: isFinalCert ? 1.5 : 1,
+            ),
           ),
           child: Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
-              initiallyExpanded: idx == 0,
-              iconColor: isSectionCompleted ? const Color(0xFF10B981) : AppColors.primary,
-              collapsedIconColor: isSectionCompleted
-                  ? const Color(0xFF10B981)
-                  : (isDark ? Colors.white38 : AppColors.textMuted),
+              initiallyExpanded: idx == 0 || isFinalCert,
+              iconColor: isFinalCert
+                  ? const Color(0xFF0AB39C)
+                  : (isSectionCompleted ? const Color(0xFF10B981) : AppColors.primary),
+              collapsedIconColor: isFinalCert
+                  ? const Color(0xFF0AB39C)
+                  : (isSectionCompleted
+                      ? const Color(0xFF10B981)
+                      : (isDark ? Colors.white38 : AppColors.textMuted)),
               leading: Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: isSectionCompleted
-                      ? const Color(0xFF10B981).withOpacity(0.15)
-                      : (!isEnrolled
-                          ? (isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0))
-                          : AppColors.primary.withOpacity(0.12)),
+                  color: isFinalCert
+                      ? const Color(0xFF0AB39C).withOpacity(0.18)
+                      : (isSectionCompleted
+                          ? const Color(0xFF10B981).withOpacity(0.15)
+                          : (!isEnrolled
+                              ? (isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0))
+                              : AppColors.primary.withOpacity(0.12))),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  isSectionCompleted
-                      ? Icons.check_circle_rounded
-                      : (!isEnrolled ? Icons.lock_outline_rounded : Icons.folder_open_rounded),
+                  isFinalCert
+                      ? Icons.workspace_premium_rounded
+                      : (isSectionCompleted
+                          ? Icons.check_circle_rounded
+                          : (!isEnrolled ? Icons.lock_outline_rounded : Icons.folder_open_rounded)),
                   size: 16,
-                  color: isSectionCompleted
-                      ? const Color(0xFF10B981)
-                      : (!isEnrolled
-                          ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))
-                          : AppColors.primary),
+                  color: isFinalCert
+                      ? const Color(0xFF0AB39C)
+                      : (isSectionCompleted
+                          ? const Color(0xFF10B981)
+                          : (!isEnrolled
+                              ? (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))
+                              : AppColors.primary)),
                 ),
               ),
-              title: Text(
-                section.title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isSectionCompleted
-                      ? (isDark ? Colors.white : AppColors.textPrimary)
-                      : (isDark ? Colors.white : AppColors.textPrimary),
-                ),
+              title: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      section.title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isFinalCert
+                            ? const Color(0xFF0AB39C)
+                            : (isSectionCompleted
+                                ? (isDark ? Colors.white : AppColors.textPrimary)
+                                : (isDark ? Colors.white : AppColors.textPrimary)),
+                      ),
+                    ),
+                  ),
+                  if (isFinalCert) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0AB39C).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Diploma Oficial',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0AB39C),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               subtitle: Text(
-                '${section.lessons.length} clases${!isEnrolled ? " • Bloqueado" : " • $completedLessonsCount completadas"}',
+                '${section.lessons.length} clases${section.evaluation != null ? ' • 1 examen' : ''}${!isEnrolled ? " • Bloqueado" : " • $completedLessonsCount completadas"}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: isSectionCompleted
-                      ? const Color(0xFF10B981)
-                      : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                  color: isFinalCert
+                      ? const Color(0xFF0AB39C)
+                      : (isSectionCompleted
+                          ? const Color(0xFF10B981)
+                          : (isDark ? AppColors.darkTextSecondary : AppColors.textSecondary)),
                 ),
               ),
               childrenPadding: const EdgeInsets.only(bottom: 8),
-              children: section.lessons.map((lesson) {
-                final bool isLessonUnlocked = isEnrolled || lesson.isFreePreview;
+              children: [
+                ...section.lessons.map((lesson) {
+                  final bool isLessonUnlocked = isEnrolled || lesson.isFreePreview;
 
-                return ListTile(
-                  leading: Icon(
-                    lesson.isCompleted
-                        ? Icons.check_circle_rounded
-                        : (isLessonUnlocked
-                            ? Icons.play_circle_outline_rounded
-                            : Icons.lock_outline_rounded),
-                    color: lesson.isCompleted
-                        ? AppColors.success
-                        : (isLessonUnlocked
-                            ? AppColors.primary
-                            : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))),
-                    size: 20,
-                  ),
-                  title: Text(
-                    lesson.title,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isLessonUnlocked
-                          ? (isDark ? Colors.white : AppColors.textPrimary)
-                          : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                  return ListTile(
+                    leading: Icon(
+                      lesson.isCompleted
+                          ? Icons.check_circle_rounded
+                          : (isLessonUnlocked
+                              ? Icons.play_circle_outline_rounded
+                              : Icons.lock_outline_rounded),
+                      color: lesson.isCompleted
+                          ? AppColors.success
+                          : (isLessonUnlocked
+                              ? AppColors.primary
+                              : (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))),
+                      size: 20,
                     ),
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (lesson.isFreePreview)
+                    title: Text(
+                      lesson.title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isLessonUnlocked
+                            ? (isDark ? Colors.white : AppColors.textPrimary)
+                            : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (lesson.isFreePreview)
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: AppColors.success.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                            child: const Text('Gratis', style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold)),
+                          )
+                        else if (!isEnrolled)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Icon(
+                              Icons.lock_rounded,
+                              size: 13,
+                              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        Text(lesson.formattedDuration, style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
+                      ],
+                    ),
+                    onTap: () async {
+                      final authVm = context.read<AuthViewModel>();
+                      final isAuthenticated = authVm.status == AuthStatus.authenticated;
+                      if (isEnrolled || lesson.isFreePreview) {
+                        learningVm.selectLesson(lesson);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => LessonPlayerScreen(course: widget.course)),
+                        ).then((_) {
+                          if (mounted) {
+                            context.read<LearningViewModel>().loadCourseSyllabus(widget.course.id);
+                          }
+                        });
+                      } else if (!isAuthenticated) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AuthScreen()),
+                        );
+                      } else {
+                        final redeemed = await CourseAccessModal.show(context, widget.course);
+                        if (redeemed == true && mounted) {
+                          setState(() {});
+                        }
+                      }
+                    },
+                  );
+                }),
+                if (section.evaluation != null)
+                  _buildEvaluationItem(section.evaluation!, isDark, isEnrolled),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEvaluationItem(Quiz quiz, bool isDark, bool isEnrolled) {
+    return FutureBuilder<bool>(
+      future: sl<QuizService>().hasPassed(quiz.id),
+      builder: (context, snapshot) {
+        final bool isPassed = snapshot.data == true;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: quiz.isFinal
+                  ? const Color(0xFF0AB39C).withOpacity(0.5)
+                  : (isDark ? AppColors.darkBorder : AppColors.border),
+              width: quiz.isFinal ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: isPassed
+                      ? const Color(0xFF10B981).withOpacity(0.15)
+                      : (quiz.isFinal
+                          ? const Color(0xFFF59E0B).withOpacity(0.15)
+                          : AppColors.primary.withOpacity(0.12)),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isPassed
+                      ? Icons.check_circle_rounded
+                      : (quiz.isFinal ? Icons.workspace_premium_rounded : Icons.assignment_turned_in_rounded),
+                  size: 18,
+                  color: isPassed
+                      ? const Color(0xFF10B981)
+                      : (quiz.isFinal ? const Color(0xFFD97706) : AppColors.primary),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
                         Container(
-                          margin: const EdgeInsets.only(right: 8),
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: AppColors.success.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                          child: const Text('Gratis', style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.bold)),
-                        )
-                      else if (!isEnrolled)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Icon(
-                            Icons.lock_rounded,
-                            size: 13,
-                            color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                          decoration: BoxDecoration(
+                            color: quiz.isFinal
+                                ? const Color(0xFFF59E0B).withOpacity(0.12)
+                                : AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            quiz.isFinal ? 'EXAMEN FINAL DIPLOMA' : 'EVALUACIÓN',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: quiz.isFinal ? const Color(0xFFD97706) : AppColors.primary,
+                            ),
                           ),
                         ),
-                      Text(lesson.formattedDuration, style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
-                    ],
-                  ),
-                  onTap: () async {
-                    final authVm = context.read<AuthViewModel>();
-                    final isAuthenticated = authVm.status == AuthStatus.authenticated;
-                    if (isEnrolled || lesson.isFreePreview) {
-                      learningVm.selectLesson(lesson);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => LessonPlayerScreen(course: widget.course)),
-                      ).then((_) {
-                        if (mounted) {
-                          context.read<LearningViewModel>().loadCourseSyllabus(widget.course.id);
-                        }
-                      });
-                    } else if (!isAuthenticated) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AuthScreen()),
-                      );
-                    } else {
-                      final redeemed = await CourseAccessModal.show(context, widget.course);
-                      if (redeemed == true && mounted) {
-                        setState(() {});
-                      }
+                        if (isPassed) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'APTO',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF10B981),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      quiz.title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '${quiz.questions.length} preguntas • Mínimo ${quiz.passingScore}%',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () async {
+                  final authVm = context.read<AuthViewModel>();
+                  final isAuthenticated = authVm.status == AuthStatus.authenticated;
+                  if (isEnrolled) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => QuizScreen(
+                          quiz: quiz,
+                          course: widget.course,
+                          onCompleted: () {
+                            if (mounted) {
+                              setState(() {});
+                              context.read<LearningViewModel>().loadCourseSyllabus(widget.course.id);
+                            }
+                          },
+                        ),
+                      ),
+                    ).then((_) {
+                      if (mounted) setState(() {});
+                    });
+                  } else if (!isAuthenticated) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AuthScreen()),
+                    );
+                  } else {
+                    final redeemed = await CourseAccessModal.show(context, widget.course);
+                    if (redeemed == true && mounted) {
+                      setState(() {});
                     }
-                  },
-                );
-              }).toList(),
-            ),
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isPassed
+                      ? (isDark ? AppColors.darkCard : Colors.grey.shade100)
+                      : (quiz.isFinal ? const Color(0xFF0AB39C) : AppColors.primary),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  isPassed ? 'Ver nota' : 'Rendir',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: isPassed
+                        ? (isDark ? Colors.white70 : AppColors.textSecondary)
+                        : Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

@@ -1,16 +1,25 @@
+import 'quiz.dart';
+
 class SyllabusSection {
   final int id;
   final String title;
   final int order;
   final List<Lesson> lessons;
+  final Quiz? evaluation;
+  final bool isFinalCertification;
 
   const SyllabusSection({
     required this.id,
     required this.title,
     required this.order,
     this.lessons = const [],
+    this.evaluation,
+    this.isFinalCertification = false,
   });
+
+  bool get hasEvaluation => evaluation != null;
 }
+
 
 class Lesson {
   final int id;

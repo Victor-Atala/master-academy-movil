@@ -27,6 +27,9 @@ import '../notes/student_notebook_screen.dart';
 import '../../widgets/course_rating_modal.dart';
 import '../../widgets/instructor_inquiry_modal.dart';
 import '../../widgets/youtube_style_comments_section.dart';
+import '../quiz/quiz_screen.dart';
+import '../../../core/services/quiz_service.dart';
+import '../../../domain/entities/quiz.dart';
 
 class LessonPlayerScreen extends StatefulWidget {
   final Course course;
@@ -2505,36 +2508,49 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> with SingleTick
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
+            color: section.isFinalCertification
+                ? (isDark ? const Color(0xFF1E293B) : const Color(0xFFFFFBEB))
+                : (isDark ? AppColors.darkSurface : Colors.white),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isDark ? AppColors.darkBorder : AppColors.border,
+              color: section.isFinalCertification
+                  ? const Color(0xFFF59E0B)
+                  : (isDark ? AppColors.darkBorder : AppColors.border),
+              width: section.isFinalCertification ? 1.5 : 1.0,
             ),
           ),
           child: Theme(
             data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
             child: ExpansionTile(
               key: PageStorageKey('section_${section.id}'),
-              initiallyExpanded: _sectionExpandedState[section.id] ?? (sectionIndex == 0),
+              initiallyExpanded: _sectionExpandedState[section.id] ?? (sectionIndex == 0 || section.isFinalCertification),
               onExpansionChanged: (isExpanded) {
                 _sectionExpandedState[section.id] = isExpanded;
               },
-              iconColor: isSectionCompleted ? const Color(0xFF10B981) : AppColors.primary,
-              collapsedIconColor: isSectionCompleted
-                  ? const Color(0xFF10B981)
-                  : (isDark ? Colors.white54 : AppColors.textMuted),
+              iconColor: section.isFinalCertification
+                  ? const Color(0xFFF59E0B)
+                  : (isSectionCompleted ? const Color(0xFF10B981) : AppColors.primary),
+              collapsedIconColor: section.isFinalCertification
+                  ? const Color(0xFFF59E0B)
+                  : (isSectionCompleted ? const Color(0xFF10B981) : (isDark ? Colors.white54 : AppColors.textMuted)),
               leading: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: isSectionCompleted
-                      ? const Color(0xFF10B981).withOpacity(0.15)
-                      : (isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0)),
+                  color: section.isFinalCertification
+                      ? const Color(0xFFF59E0B).withOpacity(0.15)
+                      : (isSectionCompleted
+                          ? const Color(0xFF10B981).withOpacity(0.15)
+                          : (isDark ? const Color(0xFF334155).withOpacity(0.5) : const Color(0xFFE2E8F0))),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  isSectionCompleted ? Icons.check_circle_rounded : Icons.folder_open_rounded,
+                  section.isFinalCertification
+                      ? Icons.workspace_premium_rounded
+                      : (isSectionCompleted ? Icons.check_circle_rounded : Icons.folder_open_rounded),
                   size: 16,
-                  color: isSectionCompleted ? const Color(0xFF10B981) : AppColors.primary,
+                  color: section.isFinalCertification
+                      ? const Color(0xFFF59E0B)
+                      : (isSectionCompleted ? const Color(0xFF10B981) : AppColors.primary),
                 ),
               ),
               title: Text(
@@ -2542,19 +2558,26 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> with SingleTick
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : AppColors.textPrimary,
+                  color: section.isFinalCertification
+                      ? (isDark ? const Color(0xFFFDE68A) : const Color(0xFF92400E))
+                      : (isDark ? Colors.white : AppColors.textPrimary),
                 ),
               ),
               subtitle: Text(
-                '${section.lessons.length} clases • $completedLessonsCount completadas',
+                section.isFinalCertification
+                    ? 'Evaluación Global obligatoria para Diploma Oficial'
+                    : '${section.lessons.length} clases • $completedLessonsCount completadas',
                 style: TextStyle(
                   fontSize: 12,
-                  color: isSectionCompleted
-                      ? const Color(0xFF10B981)
-                      : (isDark ? AppColors.darkTextMuted : AppColors.textMuted),
+                  color: section.isFinalCertification
+                      ? (isDark ? Colors.amber.shade200 : Colors.amber.shade800)
+                      : (isSectionCompleted
+                          ? const Color(0xFF10B981)
+                          : (isDark ? AppColors.darkTextMuted : AppColors.textMuted)),
                 ),
               ),
-              children: section.lessons.map((lesson) {
+              children: [
+                ...section.lessons.map((lesson) {
                 final isCurrent = learningVm.activeLesson?.id == lesson.id;
 
                 return InkWell(
@@ -2696,7 +2719,145 @@ class _LessonPlayerScreenState extends State<LessonPlayerScreen> with SingleTick
                     ),
                   ),
                 );
-              }).toList(),
+              }),
+              if (section.evaluation != null)
+                _buildPlayerEvaluationTile(section.evaluation!, isDark),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+  Widget _buildPlayerEvaluationTile(Quiz quiz, bool isDark) {
+    return FutureBuilder<bool>(
+      future: sl<QuizService>().hasPassed(quiz.id),
+      builder: (context, snapshot) {
+        final bool isPassed = snapshot.data == true;
+
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => QuizScreen(
+                  quiz: quiz,
+                  course: widget.course,
+                  onCompleted: () {
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ),
+            ).then((_) {
+              if (mounted) setState(() {});
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: quiz.isFinal
+                  ? (isDark ? const Color(0xFF0AB39C).withOpacity(0.12) : const Color(0xFFF0FDF4))
+                  : (isDark ? const Color(0xFF1E293B).withOpacity(0.4) : Colors.grey.shade50),
+              border: Border(
+                top: BorderSide(
+                  color: isDark ? AppColors.darkBorder : AppColors.border,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: isPassed
+                        ? const Color(0xFF10B981).withOpacity(0.15)
+                        : (quiz.isFinal
+                            ? const Color(0xFFF59E0B).withOpacity(0.15)
+                            : AppColors.primary.withOpacity(0.12)),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isPassed
+                        ? Icons.check_circle_rounded
+                        : (quiz.isFinal ? Icons.workspace_premium_rounded : Icons.assignment_turned_in_rounded),
+                    size: 16,
+                    color: isPassed
+                        ? const Color(0xFF10B981)
+                        : (quiz.isFinal ? const Color(0xFFD97706) : AppColors.primary),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: quiz.isFinal
+                                  ? const Color(0xFFF59E0B).withOpacity(0.12)
+                                  : AppColors.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              quiz.isFinal ? 'EXAMEN FINAL DIPLOMA' : 'EVALUACIÓN',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: quiz.isFinal ? const Color(0xFFD97706) : AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          if (isPassed) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'APTO',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF10B981),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        quiz.title,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        '${quiz.questions.length} preguntas • Mínimo ${quiz.passingScore}% requerida',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? AppColors.darkTextMuted : AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 13,
+                  color: isDark ? Colors.white38 : AppColors.textMuted,
+                ),
+              ],
             ),
           ),
         );

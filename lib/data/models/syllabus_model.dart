@@ -1,4 +1,5 @@
 import '../../domain/entities/syllabus.dart';
+import 'quiz_model.dart';
 
 class SyllabusSectionModel extends SyllabusSection {
   const SyllabusSectionModel({
@@ -6,6 +7,8 @@ class SyllabusSectionModel extends SyllabusSection {
     required super.title,
     required super.order,
     super.lessons,
+    super.evaluation,
+    super.isFinalCertification,
   });
 
   factory SyllabusSectionModel.fromJson(Map<String, dynamic> json) {
@@ -14,14 +17,32 @@ class SyllabusSectionModel extends SyllabusSection {
         .map((l) => LessonModel.fromJson(l as Map<String, dynamic>))
         .toList();
 
+    QuizModel? quiz;
+    if (json['evaluacion'] != null && json['evaluacion'] is Map) {
+      quiz = QuizModel.fromJson(json['evaluacion'] as Map<String, dynamic>);
+    } else if (json['quiz'] != null && json['quiz'] is Map) {
+      quiz = QuizModel.fromJson(json['quiz'] as Map<String, dynamic>);
+    } else if (json['evaluation'] != null && json['evaluation'] is Map) {
+      quiz = QuizModel.fromJson(json['evaluation'] as Map<String, dynamic>);
+    }
+
+    final bool isFinal = json['is_final_certification'] == true ||
+        json['isFinalCertification'] == true ||
+        (quiz != null && quiz.isFinal) ||
+        (json['title']?.toString().toLowerCase().contains('módulo final') ?? false) ||
+        (json['titulo']?.toString().toLowerCase().contains('módulo final') ?? false);
+
     return SyllabusSectionModel(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
       title: json['title']?.toString() ?? json['titulo']?.toString() ?? 'Módulo',
       order: json['order'] as int? ?? json['orden'] as int? ?? json['sort_order'] as int? ?? 1,
       lessons: lessonsList,
+      evaluation: quiz,
+      isFinalCertification: isFinal,
     );
   }
 }
+
 
 class LessonModel extends Lesson {
   const LessonModel({

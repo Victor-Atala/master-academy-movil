@@ -569,7 +569,7 @@ class MainNavigationShellState extends State<MainNavigationShell> with WidgetsBi
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   isDense: true,
-                  hintText: 'http://192.168.68.103:8000/api/v1',
+                  hintText: 'http://192.168.68.106:8000/api/v1',
                 ),
               ),
               const SizedBox(height: 12),
@@ -580,12 +580,12 @@ class MainNavigationShellState extends State<MainNavigationShell> with WidgetsBi
                 runSpacing: 6,
                 children: [
                   ActionChip(
-                    label: const Text('192.168.68.103'),
-                    onPressed: () => controller.text = 'http://192.168.68.103:8000/api/v1',
+                    label: const Text('192.168.68.106 (Actual)'),
+                    onPressed: () => controller.text = 'http://192.168.68.106:8000/api/v1',
                   ),
                   ActionChip(
-                    label: const Text('192.168.68.104'),
-                    onPressed: () => controller.text = 'http://192.168.68.104:8000/api/v1',
+                    label: const Text('192.168.68.103'),
+                    onPressed: () => controller.text = 'http://192.168.68.103:8000/api/v1',
                   ),
                   ActionChip(
                     label: const Text('10.0.2.2 (Emulador)'),

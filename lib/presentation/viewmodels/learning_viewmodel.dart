@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../../core/services/session_storage_service.dart';
 import '../../domain/entities/syllabus.dart';
 import '../../domain/usecases/get_courses_usecase.dart';
 
@@ -14,10 +15,7 @@ class LearningViewModel extends ChangeNotifier {
   })  : _getCoursesUseCase = getCoursesUseCase,
         _storage = storage ??
             const FlutterSecureStorage(
-              aOptions: AndroidOptions(
-                encryptedSharedPreferences: true,
-                resetOnError: false,
-              ),
+              aOptions: SessionStorageService.safeAndroidOptions,
             );
 
   bool _isLoading = false;
@@ -170,6 +168,8 @@ class LearningViewModel extends ChangeNotifier {
           title: section.title,
           order: section.order,
           lessons: updatedLessons,
+          evaluation: section.evaluation,
+          isFinalCertification: section.isFinalCertification,
         );
       }).toList();
 
@@ -260,6 +260,8 @@ class LearningViewModel extends ChangeNotifier {
         title: section.title,
         order: section.order,
         lessons: updatedLessons,
+        evaluation: section.evaluation,
+        isFinalCertification: section.isFinalCertification,
       );
     }).toList();
 
@@ -342,6 +344,8 @@ class LearningViewModel extends ChangeNotifier {
         title: section.title,
         order: section.order,
         lessons: updatedLessons,
+        evaluation: section.evaluation,
+        isFinalCertification: section.isFinalCertification,
       );
     }).toList();
 
